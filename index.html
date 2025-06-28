@@ -89,7 +89,7 @@ navigator.geolocation.getCurrentPosition((pos) => {
     document.getElementById('cedula').disabled = false;
     document.getElementById('registrar').disabled = false;
   } else {
-    status.textContent = '❌ No estás en UTB. No puedes registrar asistencia.';
+    status.textContent = '❌ No estás en el campus de la UTB. No puedes registrar asistencia.';
     status.style.color = 'red';
   }
 }, () => {
