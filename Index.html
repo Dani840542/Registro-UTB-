@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Registro de Asistencia UTB</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 600px;
+      margin: auto;
+      padding: 20px;
+    }
+    h1, h2 {
+      text-align: center;
+    }
+    label {
+      font-weight: bold;
+      margin-top: 10px;
+      display: block;
+    }
+    input, button {
+      width: 100%;
+      padding: 10px;
+      margin-top: 5px;
+      font-size: 1em;
+    }
+    #estado, #ubicacion-status {
+      text-align: center;
+      margin-top: 10px;
+      font-weight: bold;
+    }
+    #registros {
+      margin-top: 20px;
+      max-height: 300px;
+      overflow-y: auto;
+      border: 1px solid #ccc;
+      padding: 10px;
+      border-radius: 6px;
+    }
+    .registro {
+      border-bottom: 1px solid #ddd;
+      padding: 8px 0;
+    }
+  </style>
+</head>
+<body>
+
+<h1>Registro de Asistencia - UTB</h1>
+
+<p id="ubicacion-status">📍 Verificando ubicación...</p>
+
+<label for="curso">Código del Curso:</label>
+<input type="text" id="curso" placeholder="Ej: MAT101" disabled>
+
+<label for="cedula">Últimos 4 dígitos de la cédula:</label>
+<input type="text" id="cedula" maxlength="4" placeholder="Ej: 1234" disabled>
+
+<button id="registrar" disabled>Registrar Asistencia</button>
+<p id="estado"></p>
+
+<h2>Registros (solo lectura)</h2>
+<button id="verRegistros">Ver Registros</button>
+<button id="exportarExcel">Exportar a Excel</button>
+<div id="registros"></div>
+
+<script>
+const latUTB = -1.800857;
+const lonUTB = -79.534293;
+const radioMax = 0.2; // 200 metros
+
+function distanciaKm(lat1, lon1, lat2, lon2) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) * Math.sin(dLon/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+navigator.geolocation.getCurrentPosition((pos) => {
+  const lat = pos.coords.latitude;
+  const lon = pos.coords.longitude;
+  const distancia = distanciaKm(lat, lon, latUTB, lonUTB);
+  const status = document.getElementById('ubicacion-status');
+  if (distancia <= radioMax) {
+    status.textContent = '✅ Ubicación verificada: estás en UTB';
+    status.style.color = 'green';
+    document.getElementById('curso').disabled = false;
+    document.getElementById('cedula').disabled = false;
+    document.getElementById('registrar').disabled = false;
+  } else {
+    status.textContent = '❌ No estás en UTB. No puedes registrar asistencia.';
+    status.style.color = 'red';
+  }
+}, () => {
+  document.getElementById('ubicacion-status').textContent = '❌ No se pudo obtener la ubicación.';
+  document.getElementById('ubicacion-status').style.color = 'red';
+});
+
+document.getElementById('registrar').onclick = () => {
+  const curso = document.getElementById('curso').value.trim();
+  const cedula = document.getElementById('cedula').value.trim();
+  if (curso === '' || !/^\d{4}$/.test(cedula)) {
+    document.getElementById('estado').textContent = '❌ Datos inválidos.';
+    document.getElementById('estado').style.color = 'red';
+    return;
+  }
+
+  const registro = {
+    curso,
+    cedula,
+    fecha: new Date().toLocaleString()
+  };
+
+  const registros = JSON.parse(localStorage.getItem('registros_utb') || '[]');
+  registros.push(registro);
+  localStorage.setItem('registros_utb', JSON.stringify(registros));
+
+  document.getElementById('estado').textContent = '✅ Registro exitoso.';
+  document.getElementById('estado').style.color = 'green';
+  document.getElementById('curso').value = '';
+  document.getElementById('cedula').value = '';
+};
+
+document.getElementById('verRegistros').onclick = () => {
+  const registros = JSON.parse(localStorage.getItem('registros_utb') || '[]');
+  const contenedor = document.getElementById('registros');
+  contenedor.innerHTML = registros.map((r, i) => `
+    <div class="registro">#${i+1} - Curso: ${r.curso}, Cédula: ${r.cedula}, Fecha: ${r.fecha}</div>
+  `).join('');
+};
+
+document.getElementById('exportarExcel').onclick = () => {
+  const registros = JSON.parse(localStorage.getItem('registros_utb') || '[]');
+  if (registros.length === 0) {
+    alert('No hay registros para exportar.');
+    return;
+  }
+  const csv = "Curso,Cédula,Fecha\n" + registros.map(r =>
+    `${r.curso},${r.cedula},${r.fecha}`).join("\n");
+  const blob = new Blob([csv], {type: 'text/csv'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'registros_utb.csv';
+  a.click();
+};
+</script>
+
+</body>
+</html>
